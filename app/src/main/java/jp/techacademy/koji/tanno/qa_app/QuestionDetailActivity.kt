@@ -3,19 +3,26 @@ package jp.techacademy.koji.tanno.qa_app
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.ChildEventListener
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import kotlinx.android.synthetic.main.activity_question_detail.*
+
 
 class QuestionDetailActivity : AppCompatActivity() {
 
     private lateinit var mQuestion: Question
     private lateinit var mAdapter: QuestionDetailListAdapter
     private lateinit var mAnswerRef: DatabaseReference
+
+    private var isFavorite: Boolean = false             //　追加
 
     private val mEventListener = object : ChildEventListener {
         override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
@@ -85,12 +92,121 @@ class QuestionDetailActivity : AppCompatActivity() {
                 startActivity(intent)
             }
 
-            val dataBaseReference = FirebaseDatabase.getInstance().reference
-            mAnswerRef = dataBaseReference.child(ContentsPATH).child(mQuestion.genre.toString())
+            val mDataBaseReference = FirebaseDatabase.getInstance().reference
+            mAnswerRef = mDataBaseReference.child(ContentsPATH).child(mQuestion.genre.toString())
                 .child(mQuestion.questionUid).child(AnswersPATH)
             mAnswerRef.addChildEventListener(mEventListener)
 
         }
     }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_question_detail,menu)
+
+        // ログイン済みのユーザーを取得する
+        val user = FirebaseAuth.getInstance().currentUser
+
+        // ログインしていればお気に入りボタンを表示する
+        if (user != null) {
+
+            //QuestionUid所得
+            val questionUid = mQuestion.questionUid
+
+            // ユーザーがお気に入りに登録しているか確認
+            val mDataBaseReference = FirebaseDatabase.getInstance().reference
+            val mFavoritesRef = mDataBaseReference.child(UsersPATH).child(user.uid).child(FavoritesPATH)
+
+            mFavoritesRef.addListenerForSingleValueEvent(object: ValueEventListener {
+
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val favoriteMap = snapshot.value as Map<String,String>?
+
+                    if (favoriteMap != null) {
+                        for (favorite in favoriteMap.keys) {
+                            val temp = favoriteMap[favorite] as Map<String, String>
+                            val favoriteQuestionUid = temp["questionUid"] ?: ""
+                            if (favoriteQuestionUid == questionUid) {
+                                // お気に入りに登録済みの場合
+                                isFavorite = true
+                            }
+                        }
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    TODO("Not yet implemented")
+                }
+            })
+
+            // お気に入りボタンのアイコンを切り替える
+            if (isFavorite) {
+                menu?.findItem(R.id.favorite)
+                    ?.setIcon(R.drawable.ic_star)
+            } else {
+                menu?.findItem(R.id.favorite)
+                    ?.setIcon(R.drawable.ic_star_border)
+            }
+
+        }
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.favorite -> {
+
+                //  isFavorite = !isFavorite
+
+                // ログイン済みのユーザーを取得する
+                val user = FirebaseAuth.getInstance().currentUser
+
+                // Firebaseのお気に入り情報を更新
+                if (user != null) {
+
+                    val questionUid = mQuestion.questionUid
+                    val mDataBaseReference = FirebaseDatabase.getInstance().reference
+                    val mFavoritesRef = mDataBaseReference.child(UsersPATH).child(user.uid).child(FavoritesPATH)
+
+                    mFavoritesRef.addListenerForSingleValueEvent(object: ValueEventListener {
+
+                        override fun onDataChange(snapshot: DataSnapshot) {
+                            val favoriteMap = snapshot.value as Map<String,String>?
+                            isFavorite = false
+                            if (favoriteMap != null) {
+                                for (favorite in favoriteMap.keys) {
+                                    val temp = favoriteMap[favorite] as Map<String, String>
+                                    val favoriteQuestionUid = temp["questionUid"] ?: ""
+                                    if (favoriteQuestionUid == questionUid) {
+                                        isFavorite = true
+                                        //すでにお気に入りにあるなら、削除する
+                                        mFavoritesRef.child(favorite).removeValue()
+                                    }
+                                }
+                            }
+
+                            if (!isFavorite) {
+                                //お気に入りにないなら、登録する
+                                val data = HashMap<String, String>()
+                                data["questionUid"] = questionUid
+                                mFavoritesRef.push().setValue
+                            }
+                        }
+
+                        override fun onCancelled(error: DatabaseError) {
+                            TODO("Not yet implemented")
+                        }
+                    })
+                }
+
+                // メニューを再作成
+                invalidateMenu()
+                return true
+            }
+        }
+        return true
+
+    }
+
+
 }
 

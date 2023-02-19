@@ -1,3 +1,4 @@
+
 package jp.techacademy.koji.tanno.qa_app
 
 import android.app.Activity
