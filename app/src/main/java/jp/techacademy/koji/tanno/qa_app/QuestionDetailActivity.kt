@@ -6,6 +6,8 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
+import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.ChildEventListener
 import com.google.firebase.database.DataSnapshot
@@ -16,7 +18,7 @@ import com.google.firebase.database.ValueEventListener
 import kotlinx.android.synthetic.main.activity_question_detail.*
 
 
-class QuestionDetailActivity : AppCompatActivity() {
+class QuestionDetailActivity : AppCompatActivity(), DatabaseReference.CompletionListener  {
 
     private lateinit var mQuestion: Question
     private lateinit var mAdapter: QuestionDetailListAdapter
@@ -62,6 +64,8 @@ class QuestionDetailActivity : AppCompatActivity() {
         }
     }
 
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_question_detail)
@@ -96,6 +100,7 @@ class QuestionDetailActivity : AppCompatActivity() {
             mAnswerRef = mDataBaseReference.child(ContentsPATH).child(mQuestion.genre.toString())
                 .child(mQuestion.questionUid).child(AnswersPATH)
             mAnswerRef.addChildEventListener(mEventListener)
+
 
         }
     }
@@ -155,55 +160,75 @@ class QuestionDetailActivity : AppCompatActivity() {
         when (item.itemId) {
             R.id.favorite -> {
 
-                //  isFavorite = !isFavorite
-
                 // ログイン済みのユーザーを取得する
                 val user = FirebaseAuth.getInstance().currentUser
 
                 // Firebaseのお気に入り情報を更新
                 if (user != null) {
-
                     val questionUid = mQuestion.questionUid
                     val mDataBaseReference = FirebaseDatabase.getInstance().reference
-                    val mFavoritesRef = mDataBaseReference.child(UsersPATH).child(user.uid).child(FavoritesPATH)
+                    val mFavoritesRef =
+                        mDataBaseReference.child(UsersPATH).child(user.uid).child(FavoritesPATH)
+                    if (isFavorite) {
+                        // お気に入り登録済みなら、削除
+                        item.setIcon(R.drawable.ic_star_border)
+                        progressBar.visibility = View.VISIBLE
+                        mFavoritesRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                            override fun onDataChange(snapshot: DataSnapshot) {
+                                val favoriteMap = snapshot.value as Map<String, String>?
+                                if (favoriteMap != null) {
+                                    for (favorite in favoriteMap.keys) {
+                                        val temp = favoriteMap[favorite] as Map<String, String>
+                                        val favoriteQuestionUid = temp["questionUid"] ?: ""
+                                        if (favoriteQuestionUid == questionUid) {
+                                            // お気に入りに登録済みの場合
+                                            mFavoritesRef.child(favorite).removeValue()
+                                            isFavorite = false
 
-                    mFavoritesRef.addListenerForSingleValueEvent(object: ValueEventListener {
-
-                        override fun onDataChange(snapshot: DataSnapshot) {
-                            val favoriteMap = snapshot.value as Map<String,String>?
-                            isFavorite = false
-                            if (favoriteMap != null) {
-                                for (favorite in favoriteMap.keys) {
-                                    val temp = favoriteMap[favorite] as Map<String, String>
-                                    val favoriteQuestionUid = temp["questionUid"] ?: ""
-                                    if (favoriteQuestionUid == questionUid) {
-                                        isFavorite = true
-                                        //すでにお気に入りにあるなら、削除する
-                                        mFavoritesRef.child(favorite).removeValue()
+                                        }
                                     }
                                 }
                             }
 
-                            if (!isFavorite) {
-                                //お気に入りにないなら、登録する
-                                val data = HashMap<String, String>()
-                                data["questionUid"] = questionUid
-                                mFavoritesRef.push().setValue
+                            override fun onCancelled(error: DatabaseError) {
+                                Snackbar.make(
+                                    findViewById(android.R.id.content),
+                                    "お気に入り更新に失敗しました：" + error!!,
+                                    Snackbar.LENGTH_LONG
+                                ).show()
                             }
+                        })
+                        if (!isFavorite) {
+
+                        } else {
+                            isFavorite = false
                         }
 
-                        override fun onCancelled(error: DatabaseError) {
-                            TODO("Not yet implemented")
-                        }
-                    })
+                    } else {
+                        // お気に入り登録未済なら、登録
+                        val data = HashMap<String, String>()
+                        data["questionUid"] = questionUid
+                        progressBar.visibility = View.VISIBLE
+                        mFavoritesRef.push().setValue(data, this)
+                        item.setIcon(R.drawable.ic_star)
+                        isFavorite = true
+                    }
+
+                    return true
                 }
-
-                // メニューを再作成
-                invalidateMenu()
-                return true
             }
         }
         return true
+    }
+
+    override fun onComplete(error: DatabaseError?, ref: DatabaseReference) {
+        progressBar.visibility = View.GONE
+
+        if (error == null) {
+            // 何もしない
+        } else {
+            Snackbar.make(findViewById(android.R.id.content), "お気に入り更新に失敗しました：" + error!!, Snackbar.LENGTH_LONG).show()
+        }
 
     }
 
