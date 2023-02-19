@@ -23,6 +23,7 @@ class QuestionDetailActivity : AppCompatActivity(), DatabaseReference.Completion
     private lateinit var mQuestion: Question
     private lateinit var mAdapter: QuestionDetailListAdapter
     private lateinit var mAnswerRef: DatabaseReference
+    private lateinit var questionUid: String
 
     private var isFavorite: Boolean = false             //　追加
 
@@ -64,6 +65,50 @@ class QuestionDetailActivity : AppCompatActivity(), DatabaseReference.Completion
         }
     }
 
+    private val mFavoritesEventListener = object : ChildEventListener {
+        override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
+            val favoriteMap = dataSnapshot.value as Map<String,String>?
+            if (favoriteMap != null) {
+                for (favorite in favoriteMap.keys) {
+                    if (favoriteMap[favorite] == questionUid){
+                        // お気に入りに登録済みの場合
+                        isFavorite = true
+                        invalidateMenu()
+                    }
+                }
+            }
+        }
+
+        override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) {
+            TODO("Not yet implemented")
+        }
+
+        override fun onChildRemoved(snapshot: DataSnapshot) {
+            /*
+            isFavorite = false
+            val favoriteMap = snapshot.value as Map<String,String>?
+            if (favoriteMap != null) {
+                for (favorite in favoriteMap.keys) {
+                    if (favoriteMap[favorite] == questionUid){
+                        // お気に入りに登録済みの場合
+                        isFavorite = true
+                    }
+                    Log.v("DEBUG", favorite + ":" + isFavorite.toString())
+                }
+            }
+            invalidateMenu()
+
+             */
+        }
+
+        override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) {
+
+        }
+
+        override fun onCancelled(error: DatabaseError) {
+            TODO("Not yet implemented")
+        }
+    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,11 +120,22 @@ class QuestionDetailActivity : AppCompatActivity(), DatabaseReference.Completion
         mQuestion = extras!!.get("question") as Question
 
         title = mQuestion.title
+        questionUid = mQuestion.questionUid
 
         // ListViewの準備
         mAdapter = QuestionDetailListAdapter(this, mQuestion)
         listView.adapter = mAdapter
         mAdapter.notifyDataSetChanged()
+
+        // ログイン済みのユーザーを取得する
+        val user = FirebaseAuth.getInstance().currentUser
+
+        if (user != null) {
+            val mDataBaseReference = FirebaseDatabase.getInstance().reference
+            val mFavoritesRef =
+                mDataBaseReference.child(UsersPATH).child(user.uid).child(FavoritesPATH)
+            mFavoritesRef.addChildEventListener(mFavoritesEventListener)
+        }
 
         fab.setOnClickListener {
             // ログイン済のユーザーを取得する
@@ -100,8 +156,6 @@ class QuestionDetailActivity : AppCompatActivity(), DatabaseReference.Completion
             mAnswerRef = mDataBaseReference.child(ContentsPATH).child(mQuestion.genre.toString())
                 .child(mQuestion.questionUid).child(AnswersPATH)
             mAnswerRef.addChildEventListener(mEventListener)
-
-
         }
     }
 
@@ -113,35 +167,6 @@ class QuestionDetailActivity : AppCompatActivity(), DatabaseReference.Completion
 
         // ログインしていればお気に入りボタンを表示する
         if (user != null) {
-
-            //QuestionUid所得
-            val questionUid = mQuestion.questionUid
-
-            // ユーザーがお気に入りに登録しているか確認
-            val mDataBaseReference = FirebaseDatabase.getInstance().reference
-            val mFavoritesRef = mDataBaseReference.child(UsersPATH).child(user.uid).child(FavoritesPATH)
-
-            mFavoritesRef.addListenerForSingleValueEvent(object: ValueEventListener {
-
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val favoriteMap = snapshot.value as Map<String,String>?
-
-                    if (favoriteMap != null) {
-                        for (favorite in favoriteMap.keys) {
-                            val temp = favoriteMap[favorite] as Map<String, String>
-                            val favoriteQuestionUid = temp["questionUid"] ?: ""
-                            if (favoriteQuestionUid == questionUid) {
-                                // お気に入りに登録済みの場合
-                                isFavorite = true
-                            }
-                        }
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    TODO("Not yet implemented")
-                }
-            })
 
             // お気に入りボタンのアイコンを切り替える
             if (isFavorite) {
@@ -165,7 +190,6 @@ class QuestionDetailActivity : AppCompatActivity(), DatabaseReference.Completion
 
                 // Firebaseのお気に入り情報を更新
                 if (user != null) {
-                    val questionUid = mQuestion.questionUid
                     val mDataBaseReference = FirebaseDatabase.getInstance().reference
                     val mFavoritesRef =
                         mDataBaseReference.child(UsersPATH).child(user.uid).child(FavoritesPATH)
@@ -184,7 +208,7 @@ class QuestionDetailActivity : AppCompatActivity(), DatabaseReference.Completion
                                             // お気に入りに登録済みの場合
                                             mFavoritesRef.child(favorite).removeValue()
                                             isFavorite = false
-
+                                            invalidateMenu()
                                         }
                                     }
                                 }
@@ -198,11 +222,6 @@ class QuestionDetailActivity : AppCompatActivity(), DatabaseReference.Completion
                                 ).show()
                             }
                         })
-                        if (!isFavorite) {
-
-                        } else {
-                            isFavorite = false
-                        }
 
                     } else {
                         // お気に入り登録未済なら、登録
@@ -210,8 +229,6 @@ class QuestionDetailActivity : AppCompatActivity(), DatabaseReference.Completion
                         data["questionUid"] = questionUid
                         progressBar.visibility = View.VISIBLE
                         mFavoritesRef.push().setValue(data, this)
-                        item.setIcon(R.drawable.ic_star)
-                        isFavorite = true
                     }
 
                     return true
