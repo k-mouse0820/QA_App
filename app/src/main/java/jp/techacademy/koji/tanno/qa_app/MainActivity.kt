@@ -237,9 +237,9 @@ class MainActivity : AppCompatActivity() , NavigationView.OnNavigationItemSelect
             mGenre = 4
         } else if (id == default_menu_size) {
             Log.v("DEBUG", "clicked favorites menu")
-
-
-
+            // お気に入り一覧画面を起動する
+            val intent = Intent(applicationContext, FavoritesActivity::class.java)
+            startActivity(intent)
         }
 
         drawer_layout.closeDrawer(GravityCompat.START)

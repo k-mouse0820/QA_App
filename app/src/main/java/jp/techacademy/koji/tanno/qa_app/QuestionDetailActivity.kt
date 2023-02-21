@@ -84,25 +84,11 @@ class QuestionDetailActivity : AppCompatActivity(), DatabaseReference.Completion
         }
 
         override fun onChildRemoved(snapshot: DataSnapshot) {
-            /*
-            isFavorite = false
-            val favoriteMap = snapshot.value as Map<String,String>?
-            if (favoriteMap != null) {
-                for (favorite in favoriteMap.keys) {
-                    if (favoriteMap[favorite] == questionUid){
-                        // お気に入りに登録済みの場合
-                        isFavorite = true
-                    }
-                    Log.v("DEBUG", favorite + ":" + isFavorite.toString())
-                }
-            }
-            invalidateMenu()
-
-             */
+            TODO("Not yet implemented")
         }
 
         override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) {
-
+            TODO("Not yet implemented")
         }
 
         override fun onCancelled(error: DatabaseError) {
