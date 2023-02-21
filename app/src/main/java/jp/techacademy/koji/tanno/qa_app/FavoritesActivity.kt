@@ -16,17 +16,25 @@ class FavoritesActivity : AppCompatActivity(), DatabaseReference.CompletionListe
     private lateinit var mAdapter: FavoritesListAdapter
     private lateinit var mQuestionArrayList: ArrayList<Question>
     private var mFavoriteQidArrayList = ArrayList<String>()
+    private val mDatabaseReference = FirebaseDatabase.getInstance().reference
+
 
     private val mFavoritesEventListener = object : ChildEventListener {
         override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
             val favoriteMap = snapshot.value as Map<String, String>
-            mFavoriteQidArrayList.clear()
+
+            // ユーザーのお気に入りを取得
             for (favorite in favoriteMap.keys) {
                 if (favoriteMap[favorite] != null) {
                     mFavoriteQidArrayList.add(favoriteMap[favorite]!!)
                     Log.v("DEBUG","FAVORITES = " + favoriteMap[favorite] ?: "")
                 }
             }
+
+            // お気に入りの質問セットを取得
+            mQuestionArrayList = ArrayList<Question>()
+            val mContentsRef = mDatabaseReference.child(ContentsPATH)
+            mContentsRef.addChildEventListener(mQuestionsEventListener)
         }
 
         override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) {
@@ -136,17 +144,17 @@ class FavoritesActivity : AppCompatActivity(), DatabaseReference.CompletionListe
         val user = FirebaseAuth.getInstance().currentUser
         if (user != null) {
 
-            val mDatabaseReference = FirebaseDatabase.getInstance().reference
-
             // お気に入りのQuestionIDの配列を用意
             val mFavoritesRef =
                 mDatabaseReference.child(UsersPATH).child(user.uid).child(FavoritesPATH)
             mFavoritesRef.addChildEventListener(mFavoritesEventListener)
 
+            /*
             // お気に入りのQuestionの配列を用意
             mQuestionArrayList = ArrayList<Question>()
             val mContentsRef = mDatabaseReference.child(ContentsPATH)
             mContentsRef.addChildEventListener(mQuestionsEventListener)
+            */
         }
         mAdapter.notifyDataSetChanged()
     }
@@ -159,6 +167,7 @@ class FavoritesActivity : AppCompatActivity(), DatabaseReference.CompletionListe
         val user = FirebaseAuth.getInstance().currentUser
 
         // お気に入りのQuestionIDの配列を用意
+        mFavoriteQidArrayList.clear()
         val mFavoritesRef =
             mDatabaseReference.child(UsersPATH).child(user!!.uid).child(FavoritesPATH)
         mFavoritesRef.removeEventListener(mFavoritesEventListener)
