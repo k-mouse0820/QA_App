@@ -77,11 +77,11 @@ class FavoritesActivity : AppCompatActivity(), DatabaseReference.CompletionListe
                         title, body, name, uid, questionUid, 0, bytes, answerArrayList
                     )
 
-                    mQuestionArrayList.add(question)
-                    mAdapter.setQuestionArrayList(mQuestionArrayList)
-                    mAdapter.notifyDataSetChanged()
-                    var items = mAdapter.getCount()
-                    var a = "dummy"
+                    if (mFavoriteQidArrayList.contains(questionUid)) {
+                        mQuestionArrayList.add(question)
+                        mAdapter.setQuestionArrayList(mQuestionArrayList)
+                        mAdapter.notifyDataSetChanged()
+                    }
                 }
             }
         }
