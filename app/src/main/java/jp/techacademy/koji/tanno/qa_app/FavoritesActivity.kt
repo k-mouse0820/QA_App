@@ -10,7 +10,7 @@ import com.google.firebase.database.*
 import kotlinx.android.synthetic.main.activity_favorites.*
 
 
-class FavoritesActivity : AppCompatActivity(), DatabaseReference.CompletionListener {
+class FavoritesActivity : AppCompatActivity() {
 
 
     private lateinit var mAdapter: FavoritesListAdapter
@@ -27,14 +27,15 @@ class FavoritesActivity : AppCompatActivity(), DatabaseReference.CompletionListe
             for (favorite in favoriteMap.keys) {
                 if (favoriteMap[favorite] != null) {
                     mFavoriteQidArrayList.add(favoriteMap[favorite]!!)
-                    Log.v("DEBUG","FAVORITES = " + favoriteMap[favorite] ?: "")
+                    Log.v("DEBUG","Added FAVORITES = " + favoriteMap[favorite] ?: "")
                 }
             }
 
-            // お気に入りの質問セットを取得
+            // お気に入りのQuestionの配列を用意
             mQuestionArrayList = ArrayList<Question>()
             val mContentsRef = mDatabaseReference.child(ContentsPATH)
             mContentsRef.addChildEventListener(mQuestionsEventListener)
+
         }
 
         override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) {
@@ -84,11 +85,23 @@ class FavoritesActivity : AppCompatActivity(), DatabaseReference.CompletionListe
                     val question = Question(
                         title, body, name, uid, questionUid, 0, bytes, answerArrayList
                     )
-
+                    Log.v("DEBUG", "Added QUESTION : $questionUid")
                     if (mFavoriteQidArrayList.contains(questionUid)) {
-                        mQuestionArrayList.add(question)
-                        mAdapter.setQuestionArrayList(mQuestionArrayList)
-                        mAdapter.notifyDataSetChanged()
+                        Log.v("DEBUG", "QUESTION is FAVORITE : $questionUid")
+
+                        var isAlreadyRegistered = false
+                        for (iterator in 1..mQuestionArrayList.size) {
+                            if (mQuestionArrayList[iterator -1].questionUid == questionUid) {
+                                isAlreadyRegistered = true
+                            }
+                        }
+                        if (isAlreadyRegistered) {
+                            Log.v("DEBUT", "QUESTION: $questionUid already registered")
+                        } else {
+                            mQuestionArrayList.add(question)
+                            mAdapter.setQuestionArrayList(mQuestionArrayList)
+                            mAdapter.notifyDataSetChanged()
+                        }
                     }
                 }
             }
@@ -114,14 +127,6 @@ class FavoritesActivity : AppCompatActivity(), DatabaseReference.CompletionListe
     }
 
 
-    override fun onComplete(error: DatabaseError?, ref: DatabaseReference) {
-        if (error == null) {
-
-        } else {
-            Snackbar.make(findViewById(android.R.id.content), "DB更新に失敗しました：" + error!!, Snackbar.LENGTH_LONG).show()
-        }
-    }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -132,9 +137,6 @@ class FavoritesActivity : AppCompatActivity(), DatabaseReference.CompletionListe
         // ListViewの準備
         mAdapter = FavoritesListAdapter(this)
         favoritesListView.adapter = mAdapter
-
-
-
 
     }
 
@@ -149,12 +151,6 @@ class FavoritesActivity : AppCompatActivity(), DatabaseReference.CompletionListe
                 mDatabaseReference.child(UsersPATH).child(user.uid).child(FavoritesPATH)
             mFavoritesRef.addChildEventListener(mFavoritesEventListener)
 
-            /*
-            // お気に入りのQuestionの配列を用意
-            mQuestionArrayList = ArrayList<Question>()
-            val mContentsRef = mDatabaseReference.child(ContentsPATH)
-            mContentsRef.addChildEventListener(mQuestionsEventListener)
-            */
         }
         mAdapter.notifyDataSetChanged()
     }
@@ -175,7 +171,6 @@ class FavoritesActivity : AppCompatActivity(), DatabaseReference.CompletionListe
         // お気に入りのQuestionの配列を用意
         val mContentsRef = mDatabaseReference.child(ContentsPATH)
         mContentsRef.removeEventListener(mQuestionsEventListener)
-
 
     }
 
